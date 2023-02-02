@@ -15,14 +15,10 @@
 #define CALLBACKLIST_H_588722158669
 
 #include "eventpolicies.h"
-#include "internal/typeutil_i.h"
 
-#include <atomic>
-#include <condition_variable>
 #include <functional>
-#include <memory>
 #include <mutex>
-#include <utility>
+#include <cassert>
 
 namespace eventpp {
 
@@ -212,6 +208,8 @@ public:
 
 	Handle insert(const Callback & callback, const Handle & before)
 	{
+		assert(before.expired() || ownsHandle(before));
+
 		NodePtr beforeNode = before.lock();
 		if(beforeNode) {
 			NodePtr node(doAllocateNode(callback));
@@ -228,11 +226,29 @@ public:
 
 	bool remove(const Handle & handle)
 	{
+		assert(handle.expired() || ownsHandle(handle));
+
+		// It looks like the lock can be put inside the `if` below,
+		// but that doesn't work in multi-threading and cause related unit tests fail.
 		std::lock_guard<Mutex> lockGuard(mutex);
+
 		auto node = handle.lock();
 		if(node) {
 			doFreeNode(node);
 			return true;
+		}
+
+		return false;
+	}
+
+	bool ownsHandle(const Handle & handle) const
+	{
+		auto node = handle.lock();
+		if(node) {
+			while(node->previous) {
+				node = node->previous;
+			}
+			return node == head;
 		}
 
 		return false;
@@ -258,11 +274,12 @@ public:
 #if !defined(__GNUC__) || __GNUC__ >= 5
 	void operator() (Args ...args) const
 	{
-		// We can't use std::forward here, because if we use std::forward,
-		// for arg that is passed by value, and the callback prototype accepts it by value,
-		// std::forward will move it and may cause the original value invalid.
-		// That happens on any value-to-value passing, no matter the callback moves it or not.
 		forEachIf([&args...](Callback & callback) -> bool {
+			// We can't use std::forward here, because if we use std::forward,
+			// for arg that is passed by value, and the callback prototype accepts it by value,
+			// std::forward will move it and may cause the original value invalid.
+			// That happens on any value-to-value passing, no matter the callback moves it or not.
+
 			callback(args...);
 			return CanContinueInvoking::canContinueInvoking(args...);
 		});

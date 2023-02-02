@@ -31,9 +31,9 @@ eventpp/eventqueue.h
 
 ```c++
 template <
-	typename Event,
-	typename PrototypeList,
-	typename Policies = DefaultPolicies
+    typename Event,
+    typename PrototypeList,
+    typename Policies = DefaultPolicies
 >
 class HeterEventQueue;
 ```
@@ -134,11 +134,11 @@ void wait() const;
 ```
 `wait` causes the current thread to block until there is new event arrives in the queue.  
 Note: though `wait` has work around with spurious wakeup internally, the queue is not guaranteed not empty after `wait` returns.  
-`wait` is useful when a thread processes the event queue. A sampel usage is,
+`wait` is useful when a thread processes the event queue. A sample usage is,
 ```c++
 for(;;) {
-	eventQueue.wait();
-	eventQueue.process();
+    eventQueue.wait();
+    eventQueue.process();
 }
 ```
 The code works event if it doesn't `wait`, but doing that will waste CPU power resource.
@@ -155,12 +155,12 @@ Return true if the queue is not empty, false if the return is caused by time out
 ```c++
 std::atomic<bool> shouldStop(false);
 for(;;) {
-	while(! eventQueue.waitFor(std::chrono::milliseconds(10)) && ! shouldStop.load()) ;
-	if(shouldStop.load()) {
-		break;
-	}
+    while(! eventQueue.waitFor(std::chrono::milliseconds(10)) && ! shouldStop.load()) ;
+    if(shouldStop.load()) {
+        break;
+    }
 
-	eventQueue.process();
+    eventQueue.process();
 }
 ```
 
@@ -177,10 +177,10 @@ Sample code
 using EQ = eventpp::HeterEventQueue<int, void ()>;
 EQ queue;
 {
-	EQ::DisableQueueNotify disableNotify(&queue);
-	// any blocking threads will not be waken up by the below two lines.
-	queue.enqueue(1);
-	queue.enqueue(2);
+    EQ::DisableQueueNotify disableNotify(&queue);
+    // any blocking threads will not be waken up by the below two lines.
+    queue.enqueue(1);
+    queue.enqueue(2);
 }
 // any blocking threads are waken up here immediately.
 
